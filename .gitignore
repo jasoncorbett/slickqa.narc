@@ -16,4 +16,4 @@ nb-configuration.xml
 /target/
 */__pycache__/*
 /dist/*
-/slick.egg-info/*
+/*.egg-info/*
