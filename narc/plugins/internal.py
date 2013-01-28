@@ -13,9 +13,9 @@ from ..main import MainVars
 
 class ShutdownRestartPlugin(object):
 
-    def __init__(self, config, conn):
+    def __init__(self, config, conn, slick):
         assert(isinstance(conn, AMQPConnection))
-        self.queue = Queue('narc_internal_shutdown', exchange=conn.exchange, routing_key='narc.shutdown')
+        self.queue = Queue('narc_internal_shutdown', exchange=conn.exchange, routing_key='narc.shutdown', durable=False, exclusive=True)
         self.consumer = Consumer(conn.default_channel,queues=[self.queue,], callbacks=[self.on_shutdown_message,])
         conn.add_consumer(self.consumer)
         self.logger = logging.getLogger('narc.plugins.internal.ShutdownRestartPlugin')

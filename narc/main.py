@@ -106,7 +106,7 @@ def main(args=sys.argv[1:]):
 
         for entrypoint in pkg_resources.iter_entry_points(group='narc.response'):
             plugin = entrypoint.load()
-            plugins.append(plugin(configuration, amqpcon))
+            plugins.append(plugin(configuration, amqpcon, slick))
 
         with amqpcon.connection, nested(*amqpcon.channels), nested(*amqpcon.consumers):
             while MainVars.keep_going:
