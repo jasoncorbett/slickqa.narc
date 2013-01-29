@@ -13,6 +13,8 @@ from slickqa import SlickConnection, EmailSystemConfiguration, Testrun
 from slickqa import micromodels
 from kombu import Consumer, Queue
 from kombu.transport.base import Message
+from jinja2 import Template
+import pygal
 
 # smtp imports
 import smtplib
@@ -28,6 +30,38 @@ class TestrunUpdateMessage(micromodels.Model):
 
 class EmailResponder(object):
     """The email auto responder plugin"""
+
+    default_subject_template = "Results of {testrun.name} on {testrun.project.name} for Release {testrun.release.name} build {testrun.build.name}"
+
+    default_email_template = """
+    <div style="background: #000; color: #d3d2d2; padding: 0 0 .5in 0;">
+        <div style="display: inline-block">
+            <h1 style="color: #fff; background-image: -webkit-linear-gradient(#A6000D, #650207); background-image: -moz-linear-gradient(#A6000D, #650207); background-image: -ms-linear-gradient(#A6000D, #650207); border-radius: .2in .2in .2in .2in; margin: .3in; padding: .1in .2in .1in .2in;"><a href="{{testrun_link}}" style="text-decoration: none; color: white">{{subject}}</a></h1>
+        </div>
+        <table style="border: 1px solid white; padding: .1in; border-collapse:collapse; margin-left: .5in; color: #d3d2d2">
+            <tr style="border: 1px solid white; padding: .1in; border-collapse:collapse; color: #d3d2d2">
+                <td style="border: 1px solid white; padding: .1in; border-collapse:collapse;" rowspan="{{len(testrun.summary.statusListOrdered)}}">Image goes here</td>
+            {% for status in testrun.summary.statusListOrdered %}
+                <td style="border: 1px solid white; padding: .1in; border-collapse:collapse;"><span style="color: {{colors[status]}}; font-size: 1.5em">{{status}}</span></td>
+                <td style="border: 1px solid white; padding: .1in; border-collapse:collapse;"><span style="font-size: 1.5em">{{getattr(testrun.summary.resultsByStatus, status)}}</span></td>
+            </tr>
+            <tr style="border: 1px solid white; padding: .1in; border-collapse:collapse; color: #d3d2d2">
+            {% endfor %}
+                <td style="border: 1px solid white; padding: .1in; border-collapse:collapse;" colspan="3"><span style="font-size: 1.5em">Total tests: {{testrun.summary.total}}</span></td>
+            </tr>
+        </table>
+    </div>
+    """
+
+    colors = {
+        "PASS": "#008000",
+        "FAIL": "#ff0000",
+        "BROKEN_TEST": "#ffac00",
+        "SKIPPED": "#bdb76b",
+        "NOT_TESTED": "#1e90ff",
+        "NO_RESULT": "#c0c0c0",
+        "CANCELLED": "#a0522d"
+    }
 
     def __init__(self, configuration, amqpcon, slick):
         assert(isinstance(configuration, configparser.ConfigParser))
@@ -61,13 +95,14 @@ class EmailResponder(object):
         update = TestrunUpdateMessage.from_dict(body)
         if update.before.finished is False and update.after.finished is True:
             self.logger.info("Testrun with id {} and name {} just finished.", update.after.id, update.after.name)
-            text = """
-            <h1>Testrun {testrun.name} Results</h1>
-            Total tests: {testrun.summary.total}
-            PASS: {testrun.summary.resultsByStatus.PASS}
-            """.format(testrun=update.after)
-            subject = "Results for {testrun.name}".format(testrun=update.after)
-            to = "jasoncorbett@gmail.com"
+            (subject_template, email_template) = self.get_templates_for(update.after)
+            # take off the api portion of the url
+            testrunlink = self.slick.baseUrl[0:-3]
+            testrunlink = testrunlink + "#/reports/testrunsummary/" + update.after.id
+            email_template = Template(email_template)
+            subject = subject_template.format(testrun=update.after)
+            text = email_template.render(testrun=update.after, subject=subject, colors=EmailResponder.colors, testrun_link=testrunlink, getattr=getattr, len=len)
+            to = self.get_addresses_for(update.after)
             self.mail(to, subject, text)
 
     def mail(self, to, subject, text):
@@ -99,6 +134,13 @@ class EmailResponder(object):
         # Should be mailServer.quit(), but that crashes...
         mailServer.close()
 
+    def get_templates_for(self, testrun):
+        assert(isinstance(testrun, Testrun))
+        return (EmailResponder.default_subject_template, EmailResponder.default_email_template)
+
+    def get_addresses_for(self, testrun):
+        assert(isinstance(testrun, Testrun))
+        return "jasoncorbett@gmail.com"
 
 
 
