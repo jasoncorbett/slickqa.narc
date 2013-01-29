@@ -6,20 +6,26 @@ __author__ = 'jcorbett'
 import configparser
 import logging
 import json
+from io import BytesIO
+import time
 
 from ..amqp import AMQPConnection
 
-from slickqa import SlickConnection, EmailSystemConfiguration, Testrun
+from slickqa import SlickConnection, EmailSystemConfiguration, Testrun, EmailSubscription
 from slickqa import micromodels
 from kombu import Consumer, Queue
 from kombu.transport.base import Message
 from jinja2 import Template
+import cairosvg.surface
+
 import pygal
+from pygal.style import DefaultStyle, Style
 
 # smtp imports
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.image import MIMEImage
 from email.mime.base import MIMEBase
 from email import encoders
 
@@ -38,16 +44,17 @@ class EmailResponder(object):
         <div style="display: inline-block">
             <h1 style="color: #fff; background-image: -webkit-linear-gradient(#A6000D, #650207); background-image: -moz-linear-gradient(#A6000D, #650207); background-image: -ms-linear-gradient(#A6000D, #650207); border-radius: .2in .2in .2in .2in; margin: .3in; padding: .1in .2in .1in .2in;"><a href="{{testrun_link}}" style="text-decoration: none; color: white">{{subject}}</a></h1>
         </div>
-        <table style="border: 1px solid white; padding: .1in; border-collapse:collapse; margin-left: .5in; color: #d3d2d2">
-            <tr style="border: 1px solid white; padding: .1in; border-collapse:collapse; color: #d3d2d2">
-                <td style="border: 1px solid white; padding: .1in; border-collapse:collapse;" rowspan="{{len(testrun.summary.statusListOrdered)}}">Image goes here</td>
+        <table style="margin-left: .5in; color: #d3d2d2; border-spacing: 0">
+            <tr style="color: #d3d2d2">
+                <td rowspan="{{len(testrun.summary.statusListOrdered) + 1}}"><img src="cid:{{image_file_name}}" alt="chart" /></td>
             {% for status in testrun.summary.statusListOrdered %}
-                <td style="border: 1px solid white; padding: .1in; border-collapse:collapse;"><span style="color: {{colors[status]}}; font-size: 1.5em">{{status}}</span></td>
-                <td style="border: 1px solid white; padding: .1in; border-collapse:collapse;"><span style="font-size: 1.5em">{{getattr(testrun.summary.resultsByStatus, status)}}</span></td>
+                <td style="padding-top: 0; padding-bottom: .1in; vertical-align: text-top"><span style="color: {{colors[status]}}; font-size: 2.5em">{{status}}</span></td>
+                <td style="padding-top: 0; padding-bottom: .1in; padding-left: .3in; vertical-align: text-top"><span style="font-size: 2.5em">{{getattr(testrun.summary.resultsByStatus, status)}}</span></td>
             </tr>
-            <tr style="border: 1px solid white; padding: .1in; border-collapse:collapse; color: #d3d2d2">
+            <tr style="color: #d3d2d2">
             {% endfor %}
-                <td style="border: 1px solid white; padding: .1in; border-collapse:collapse;" colspan="3"><span style="font-size: 1.5em">Total tests: {{testrun.summary.total}}</span></td>
+                <td style="border-top: 1px solid white; border-collapse:collapse; vertical-align: text-top; padding-top: .1in;"><span style="font-size: 2.5em">Total tests</span></td>
+                <td style="border-top: 1px solid white; border-collapse:collapse; vertical-align: text-top; padding-top: .1in; padding-left: .3in;"><span style="font-size: 2.5em">{{testrun.summary.total}}</span></td>
             </tr>
         </table>
     </div>
@@ -94,33 +101,58 @@ class EmailResponder(object):
             message.ack()
         update = TestrunUpdateMessage.from_dict(body)
         if update.before.finished is False and update.after.finished is True:
-            self.logger.info("Testrun with id {} and name {} just finished.", update.after.id, update.after.name)
+            to = self.get_addresses_for(update.after)
+            if len(to) > 0:
+                self.logger.info("Testrun with id {} and name {} just finished, generating email to subscribers: {}", update.after.id, update.after.name, ', '.join(to))
+            else:
+                self.logger.info("Testrun with id {} and name {} just finished, but no emails are subscribed.", update.after.id, update.after.name)
+                return
             (subject_template, email_template) = self.get_templates_for(update.after)
+            image_file_name = "chart-{}.png".format(str(int(time.time())))
             # take off the api portion of the url
             testrunlink = self.slick.baseUrl[0:-3]
             testrunlink = testrunlink + "#/reports/testrunsummary/" + update.after.id
             email_template = Template(email_template)
             subject = subject_template.format(testrun=update.after)
-            text = email_template.render(testrun=update.after, subject=subject, colors=EmailResponder.colors, testrun_link=testrunlink, getattr=getattr, len=len)
-            to = self.get_addresses_for(update.after)
-            self.mail(to, subject, text)
+            text = email_template.render(testrun=update.after, subject=subject, colors=EmailResponder.colors, testrun_link=testrunlink, image_file_name=image_file_name, getattr=getattr, len=len)
+            image = self.generate_chart_for(update.after)
+            self.mail(to, subject, text, image, image_file_name)
 
-    def mail(self, to, subject, text):
+    def generate_chart_for(self, testrun):
+        assert(isinstance(testrun, Testrun))
+        colors = []
+        for status in testrun.summary.statusListOrdered:
+            colors.append(EmailResponder.colors[status])
+        mystyle = Style(background='transparent',
+                        plot_background='transparent',
+                        colors=colors,
+                        foreground='#d2d3d3',
+                        foreground_light='#eee',
+                        foreground_dark='#555')
+        config = pygal.Config()
+        config.show_legend = False
+        pie_chart = pygal.Pie(config, width=400, height=300, style=mystyle)
+        for status in testrun.summary.statusListOrdered:
+            pie_chart.add(status, getattr(testrun.summary.resultsByStatus, status))
+        fakefile_svg = BytesIO()
+        fakefile_svg.write(pie_chart.render())
+        fakefile_svg.seek(0)
+
+        # this is what render_to_png does, but this way we don't have to write to a file
+        return cairosvg.surface.PNGSurface.convert(file_obj=fakefile_svg)
+
+
+    def mail(self, to, subject, text, image, image_file_name):
         # build a list from 'to'
-        to = to.strip()
-        to = to.split(',')
         msg = MIMEMultipart()
         msg['From'] = self.email_settings.sender
         msg['To'] = ', '.join(to)
         msg['Subject'] = subject
         msg.attach(MIMEText(text, 'html'))
 
-        #if os.path.exists(image):
-        #    fp = open(image, 'rb')
-        #    img = MIMEImage(fp.read())
-        #    fp.close()
-        #    img.add_header('Content-ID', '<result.png>')
-        #    msg.attach(img)
+        img = MIMEImage(image)
+        img.add_header('Content-ID', '<' + image_file_name + '>')
+        msg.attach(img)
 
         mailServer = None
         if self.email_settings.ssl:
@@ -140,7 +172,23 @@ class EmailResponder(object):
 
     def get_addresses_for(self, testrun):
         assert(isinstance(testrun, Testrun))
-        return "jasoncorbett@gmail.com"
+        email_addresses = self.slick.systemconfigurations(EmailSubscription).find()
+        addresses = []
+        for email_address in email_addresses:
+            if email_address.enabled:
+                for subscription in email_address.subscriptions:
+                    if subscription.subscriptionType == 'Global':
+                        addresses.append(email_address.name)
+                    elif subscription.subscriptionType == 'Project' and testrun.project is not None and subscription.subscriptionValue == testrun.project.id:
+                        addresses.append(email_address.name)
+                    elif subscription.subscriptionType == 'Testplan' and testrun.testplan is not None and subscription.subscriptionValue == testrun.testplan.id:
+                        addresses.append(email_address.name)
+                    elif subscription.subscriptionType == 'Release' and testrun.release is not None and subscription.subscriptionValue == testrun.release.releaseId:
+                        addresses.append(email_address.name)
+                    elif subscription.subscriptionType == 'Configuration' and testrun.config is not None and subscription.subscriptionValue == testrun.config.configId:
+                        addresses.append(email_address.name)
+        return addresses
+
 
 
 
