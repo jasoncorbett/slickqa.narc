@@ -86,7 +86,7 @@ def main(args=sys.argv[1:]):
     parser = argparse.ArgumentParser(description="Narc is a utility that is used to respond to slick events.")
     parser.add_argument('-c', '--config', action='store', default='/etc/narc.conf', dest='configpath', metavar='CONFIGPATH', help="specify the config file narc uses, default=/etc/narc.conf")
     parser.add_argument('-s', '--stdout', action='store_true', default=False, dest='stdout', help="send logs to stdout")
-    parser.add_argument('--loglevel', action='store', default='INFO', dest='loglevel', help="Change the default log level from INFO to another level (like DEBUG, WARNING, ERROR, or CRITICAL)")
+    parser.add_argument('--loglevel', action='store', dest='loglevel', help="Change the default log level from INFO to another level (like DEBUG, WARNING, ERROR, or CRITICAL)")
     parser.add_argument('--slick', action='store', dest='slickurl', metavar='SLICKBASEURL', help='Use the specified url for connecting to slick')
     parser.add_argument('--logfile', action='store', dest='logfile', metavar='LOGFILE', help="Change where the logs go to for this run")
     options = parser.parse_args(args)
