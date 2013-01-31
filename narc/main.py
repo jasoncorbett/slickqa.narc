@@ -41,7 +41,7 @@ def setup(options):
         config['Logging']['stdout'] = 'True'
     if hasattr(options, 'nologfile') and options.nologfile:
         config['Logging']['logfile'] = ''
-    if hasattr(options, 'loglevel'):
+    if hasattr(options, 'loglevel') and options.loglevel is not None and options.loglevel != '':
         config['Logging']['level'] = options.loglevel
     if hasattr(options, 'slickurl') and options.slickurl is not None and options.slickurl != '':
         config['Slick']['url'] = options.slickurl
