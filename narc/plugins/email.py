@@ -57,6 +57,7 @@ class EmailResponder(object):
                 <td style="border-top: 1px solid white; border-collapse:collapse; vertical-align: text-top; padding-top: .1in; padding-left: .3in;"><span style="font-size: 2.5em">{{testrun.summary.total}}</span></td>
             </tr>
         </table>
+        <div style="color: {{colors['BROKEN_TEST']}}; margin-left: .5in; margin-right: .5in;"><span style="font-size: 2em">WARNING:</span> The results you are seeing are unreviewed.  The people in charge of this email are probably seeing the results at the same time as you.  Please refrain from accusing them or causing any form of bodily harm if you are not pleased with the results.</div>
         {% if len(failed_results) > 0 %}
         <hr />
         <h1>Failed Results</h1>
