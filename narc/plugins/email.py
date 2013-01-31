@@ -11,7 +11,7 @@ import time
 
 from ..amqp import AMQPConnection
 
-from slickqa import SlickConnection, EmailSystemConfiguration, Testrun, EmailSubscription
+from slickqa import SlickConnection, EmailSystemConfiguration, Testrun, EmailSubscription, Result, ResultStatus, StoredFile
 from slickqa import micromodels
 from kombu import Consumer, Queue
 from kombu.transport.base import Message
@@ -42,13 +42,13 @@ class EmailResponder(object):
     default_email_template = """
     <div style="background: #000; color: #d3d2d2; padding: 0 0 .5in 0;">
         <div style="display: inline-block">
-            <h1 style="color: #fff; background-image: -webkit-linear-gradient(#A6000D, #650207); background-image: -moz-linear-gradient(#A6000D, #650207); background-image: -ms-linear-gradient(#A6000D, #650207); border-radius: .2in .2in .2in .2in; margin: .3in; padding: .1in .2in .1in .2in;"><a href="{{testrun_link}}" style="text-decoration: none; color: white">{{subject}}</a></h1>
+            <h1 style="color: #fff; background-image: -webkit-linear-gradient(#A6000D, #650207); background-image: -moz-linear-gradient(#A6000D, #650207); background-image: -ms-linear-gradient(#A6000D, #650207); border-radius: .2in .2in .2in .2in; margin: .3in; padding: .1in .2in .1in .2in;"><a href="{{url(testrun)}}" style="text-decoration: none; color: white">{{subject}}</a></h1>
         </div>
         <table style="margin-left: .5in; color: #d3d2d2; border-spacing: 0">
             <tr style="color: #d3d2d2">
                 <td rowspan="{{len(testrun.summary.statusListOrdered) + 1}}"><img src="cid:{{image_file_name}}" alt="chart" /></td>
             {% for status in testrun.summary.statusListOrdered %}
-                <td style="padding-top: 0; padding-bottom: .1in; vertical-align: text-top"><span style="color: {{colors[status]}}; font-size: 2.5em">{{status}}</span></td>
+                <td style="padding-top: 0; padding-bottom: .1in; vertical-align: text-top"><a href="{{url(testrun, status)}}" style="text-decoration: none"><span style="color: {{colors[status]}}; font-size: 2.5em">{{status}}</span></a></td>
                 <td style="padding-top: 0; padding-bottom: .1in; padding-left: .3in; vertical-align: text-top"><span style="font-size: 2.5em">{{getattr(testrun.summary.resultsByStatus, status)}}</span></td>
             </tr>
             <tr style="color: #d3d2d2">
@@ -57,6 +57,19 @@ class EmailResponder(object):
                 <td style="border-top: 1px solid white; border-collapse:collapse; vertical-align: text-top; padding-top: .1in; padding-left: .3in;"><span style="font-size: 2.5em">{{testrun.summary.total}}</span></td>
             </tr>
         </table>
+        {% if len(failed_results) > 0 %}
+        <hr />
+        <h1>Failed Results</h1>
+        {% for result in failed_results %}
+            <div style="margin-left: .2in"><a href="{{url(result)}}" style="text-decoration: none; color: {{colors['FAIL']}}; font-size: 2em">{{result.testcase.name}}</a></div>
+            <pre style="margin-left: .5in">{{result.reason}}</pre>
+            <div style="margin-left: .5in; margin-bottom: .1in">Files:
+            {% for storedfile in result.files %}
+                <a href="{{url(storedfile)}}">{{storedfile.filename}}</a>
+            {% endfor %}
+            </div>
+        {% endfor %}
+        {% endif %}
     </div>
     """
 
@@ -109,12 +122,12 @@ class EmailResponder(object):
                 return
             (subject_template, email_template) = self.get_templates_for(update.after)
             image_file_name = "chart-{}.png".format(str(int(time.time())))
-            # take off the api portion of the url
-            testrunlink = self.slick.baseUrl[0:-3]
-            testrunlink = testrunlink + "#/reports/testrunsummary/" + update.after.id
             email_template = Template(email_template)
             subject = subject_template.format(testrun=update.after)
-            text = email_template.render(testrun=update.after, subject=subject, colors=EmailResponder.colors, testrun_link=testrunlink, image_file_name=image_file_name, getattr=getattr, len=len)
+
+            #TODO: fix after creating results query
+            failed_results = self.slick.results.find(testrunid=update.after.id, status=ResultStatus.FAIL)
+            text = email_template.render(testrun=update.after, subject=subject, colors=EmailResponder.colors, image_file_name=image_file_name, url=self.url, failed_results=failed_results, getattr=getattr, len=len)
             image = self.generate_chart_for(update.after)
             self.mail(to, subject, text, image, image_file_name)
 
@@ -165,6 +178,20 @@ class EmailResponder(object):
         mailServer.sendmail(self.email_settings.sender, to, msg.as_string())
         # Should be mailServer.quit(), but that crashes...
         mailServer.close()
+
+    def url(self, param, status=None):
+        """Return a url based on the parameter passed in."""
+        base_url = self.slick.baseUrl[0:-4]
+        if isinstance(param, Testrun):
+            if status is None:
+                return "{}/#/reports/testrunsummary/{}".format(base_url, param.id)
+            else:
+                return "{}/#/reports/testrundetail/{}?only={}".format(base_url, param.id, status)
+        elif isinstance(param, Result):
+            return "{}/#/reports/result/{}".format(base_url, param.id)
+        elif isinstance(param, StoredFile):
+            return "{}/api/files/{}/content/{}".format(base_url, param.id, param.filename)
+
 
     def get_templates_for(self, testrun):
         assert(isinstance(testrun, Testrun))
