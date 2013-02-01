@@ -135,11 +135,33 @@ def ctlmain(args=sys.argv[1:]):
     parser.add_argument('--slick', action='store', dest='slickurl', metavar='SLICKBASEURL', help='Use the specified url for connecting to slick')
     parser.add_argument('--shutdown', action='store_true', dest='shutdown', default=False, help="Send a shutdown signal to narc.")
     parser.add_argument('--restart', action='store_true', dest='restart', default=False, help="Send a restart signal to narc.")
+    parser.add_argument('--configure', action='store_true', dest='configure', default=False, help="Configure narc")
+
     options = parser.parse_args(args)
-    (configuration, slick, amqpcon) = setup(options)
+
+    if options.configure:
+        slick_url = input("Please enter the url of slick: ")
+        if slick_url is None or slick_url == '':
+            print("You need to have a url for connecting to slick in order for narc to work.")
+            sys.exit(1)
+        options.slickurl = slick_url
+        logfile = input("Where do you want to log to [default=/var/log/narc.log]? ")
+        if logfile is None or logfile == "":
+            logfile = "/var/log/narc.log"
+        options.logfile = logfile
+        options.nologfile = False
+        loglevel = input("What log level would you like to use by default [default=INFO]? ")
+        if loglevel is None or loglevel == "":
+            loglevel = "INFO"
+        options.loglevel = loglevel
+    (config, slick, amqpcon) = setup(options)
+    if options.configure:
+        configuration.save_configuration("/etc/narc.conf", config)
+        print("Configuration saved to /etc/narc.conf.")
     if options.shutdown:
         producer = Producer(amqpcon.default_channel, amqpcon.exchange)
         producer.publish("shutdown", "narc.shutdown")
     elif options.restart:
         producer = Producer(amqpcon.default_channel, amqpcon.exchange)
         producer.publish("restart", "narc.shutdown")
+
