@@ -11,7 +11,7 @@ import time
 
 from ..amqp import AMQPConnection
 
-from slickqa import SlickConnection, EmailSystemConfiguration, Testrun, EmailSubscription, Result, ResultStatus, StoredFile
+from slickqa import SlickConnection, EmailSystemConfiguration, Testrun, EmailSubscription, Result, ResultStatus, StoredFile, RunStatus
 from slickqa import micromodels
 from kombu import Consumer, Queue
 from kombu.transport.base import Message
@@ -114,7 +114,7 @@ class EmailResponder(object):
         if not message.acknowledged:
             message.ack()
         update = TestrunUpdateMessage.from_dict(body)
-        if update.before.finished is False and update.after.finished is True:
+        if update.before.state != RunStatus.FINISHED and update.after.state == RunStatus.FINISHED:
             to = self.get_addresses_for(update.after)
             if len(to) > 0:
                 self.logger.info("Testrun with id {} and name {} just finished, generating email to subscribers: {}", update.after.id, update.after.name, ', '.join(to))

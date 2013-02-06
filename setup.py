@@ -16,7 +16,7 @@ setup(
     packages=find_packages(exclude=['distribute_setup']),
     package_data={'': ['*.txt', '*.rst', '*.html']},
     include_package_data=True,
-    install_requires=['slickqa>=2.0.14', 'kombu>=2.5.4', 'Jinja2>=2.6', 'pygal>=0.13.0', 'CairoSVG>=0.5', 'tinycss>=0.3', 'cssselect>=0.7.1', 'amqp>=1.0.6', 'anyjson>=0.3.3'],
+    install_requires=['slickqa>=2.0.15', 'kombu>=2.5.4', 'Jinja2>=2.6', 'pygal>=0.13.0', 'CairoSVG>=0.5', 'tinycss>=0.3', 'cssselect>=0.7.1', 'amqp>=1.0.6', 'anyjson>=0.3.3'],
     author="Slick Developers",
     url="http://code.google.com/p/slickqa",
     entry_points={
