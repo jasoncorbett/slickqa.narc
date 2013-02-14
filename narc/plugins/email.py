@@ -11,7 +11,7 @@ import time
 
 from ..amqp import AMQPConnection
 
-from slickqa import SlickConnection, EmailSystemConfiguration, Testrun, EmailSubscription, Result, ResultStatus, StoredFile, RunStatus
+from slickqa import SlickConnection, EmailSystemConfiguration, Testrun, EmailSubscription, Result, ResultStatus, StoredFile, RunStatus, EmailOffSwitch
 from slickqa import micromodels
 from kombu import Consumer, Queue
 from kombu.transport.base import Message
@@ -114,7 +114,7 @@ class EmailResponder(object):
         if not message.acknowledged:
             message.ack()
         update = TestrunUpdateMessage.from_dict(body)
-        if update.before.state != RunStatus.FINISHED and update.after.state == RunStatus.FINISHED:
+        if update.before.state != RunStatus.FINISHED and update.after.state == RunStatus.FINISHED and self.should_email_for(update.after):
             to = self.get_addresses_for(update.after)
             if len(to) > 0:
                 self.logger.info("Testrun with id {} and name {} just finished, generating email to subscribers: {}", update.after.id, update.after.name, ', '.join(to))
@@ -216,6 +216,29 @@ class EmailResponder(object):
                     elif subscription.subscriptionType == 'Configuration' and testrun.config is not None and subscription.subscriptionValue == testrun.config.configId:
                         addresses.append(email_address.name)
         return addresses
+
+    def should_email_for(self, testrun):
+        assert(isinstance(testrun, Testrun))
+        off_switches = self.slick.systemconfigurations(EmailOffSwitch).find()
+        for off_switch in off_switches:
+            assert(isinstance(off_switch, EmailOffSwitch))
+            if off_switch.turnOffEmailsForType == 'Global':
+                self.logger.info("Found EmailOffSwitch (System Configuration id {}), with type Global, returning False for should_email_for.", off_switch.id)
+                return False
+            if off_switch.turnOffEmailsForType == 'Project' and testrun.project is not None and off_switch.turnOffEmailsForId == testrun.project.id:
+                self.logger.info("Found EmailOffSwitch (System Configuration id {}) for Project with id {}, returning False for should_email_for.", off_switch.id, off_switch.turnOffEmailsForId)
+                return False
+            if off_switch.turnOffEmailsForType == 'Testplan' and testrun.testplan is not None and off_switch.turnOffEmailsForId == testrun.testplanid:
+                self.logger.info("Found EmailOffSwitch (System Configuration id {}) for Testplan with id {}, returning False for should_email_for.", off_switch.id, off_switch.turnOffEmailsForId)
+                return False
+            if off_switch.turnOffEmailsForType == 'Release' and testrun.release is not None and off_switch.turnOffEmailsForId == testrun.release.releaseId:
+                self.logger.info("Found EmailOffSwitch (System Configuration id {}) for Release with id {}, returning False for should_email_for.", off_switch.id, off_switch.turnOffEmailsForId)
+                return False
+            if off_switch.turnOffEmailsForType == 'Configuration' and testrun.config is not None and off_switch.turnOffEmailsForId == testrun.config.configId:
+                self.logger.info("Found EmailOffSwitch (System Configuration id {}) for Configuration with id {}, returning False for should_email_for.", off_switch.id, off_switch.turnOffEmailsForId)
+                return False
+        return True
+
 
 
 
