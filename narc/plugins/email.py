@@ -40,31 +40,32 @@ class EmailResponder(object):
     default_subject_template = "Results of {testrun.name} on {testrun.project.name} for Release {testrun.release.name} build {testrun.build.name}"
 
     default_email_template = """
+    <body style="background:#000; color: #d3d2d2; padding: 0;">
     <div style="background: #000; color: #d3d2d2; padding: 0 0 .5in 0;">
-        <div style="display: inline-block">
-            <h1 style="color: #fff; background-image: -webkit-linear-gradient(#A6000D, #650207); background-image: -moz-linear-gradient(#A6000D, #650207); background-image: -ms-linear-gradient(#A6000D, #650207); border-radius: .2in .2in .2in .2in; margin: .3in; padding: .1in .2in .1in .2in;"><a href="{{url(testrun)}}" style="text-decoration: none; color: white">{{subject}}</a></h1>
+        <div style="display: inline-block; background: #000">
+            <h1 style="color: #fff; background: #650207; background-image: -webkit-linear-gradient(#A6000D, #650207); background-image: -moz-linear-gradient(#A6000D, #650207); background-image: -ms-linear-gradient(#A6000D, #650207); filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#A6000D', endColorstr='#650207'); border-radius: .2in .2in .2in .2in; margin: .3in; padding: .1in .2in .1in .2in;"><a href="{{url(testrun)}}" style="text-decoration: none; color: white">{{subject}}</a></h1>
         </div>
-        <table style="margin-left: .5in; color: #d3d2d2; border-spacing: 0">
-            <tr style="color: #d3d2d2">
-                <td rowspan="{{len(testrun.summary.statusListOrdered) + 1}}"><img src="cid:{{image_file_name}}" alt="chart" /></td>
+        <table style="margin-left: .5in; color: #d3d2d2; border-spacing: 0; background: #000">
+            <tr style="color: #d3d2d2; background: #000">
+                <td rowspan="{{len(testrun.summary.statusListOrdered) + 1}}" style="background: #000"><img src="cid:{{image_file_name}}" alt="chart" /></td>
             {% for status in testrun.summary.statusListOrdered %}
-                <td style="padding-top: 0; padding-bottom: .1in; vertical-align: text-top"><a href="{{url(testrun, status)}}" style="text-decoration: none"><span style="color: {{colors[status]}}; font-size: 2.5em">{{status}}</span></a></td>
-                <td style="padding-top: 0; padding-bottom: .1in; padding-left: .3in; vertical-align: text-top"><span style="font-size: 2.5em">{{getattr(testrun.summary.resultsByStatus, status)}}</span></td>
+                <td style="background: #000; padding-top: 0; padding-bottom: .1in; vertical-align: text-top"><a href="{{url(testrun, status)}}" style="text-decoration: none"><span style="color: {{colors[status]}}; font-size: 2.5em">{{status}}</span></a></td>
+                <td style="background: #000; padding-top: 0; padding-bottom: .1in; padding-left: .3in; vertical-align: text-top"><span style="font-size: 2.5em">{{getattr(testrun.summary.resultsByStatus, status)}}</span></td>
             </tr>
-            <tr style="color: #d3d2d2">
+            <tr style="color: #d3d2d2; background: #000;">
             {% endfor %}
-                <td style="border-top: 1px solid white; border-collapse:collapse; vertical-align: text-top; padding-top: .1in;"><span style="font-size: 2.5em">Total tests</span></td>
-                <td style="border-top: 1px solid white; border-collapse:collapse; vertical-align: text-top; padding-top: .1in; padding-left: .3in;"><span style="font-size: 2.5em">{{testrun.summary.total}}</span></td>
+                <td style="background: #000; border-top: 1px solid white; border-collapse:collapse; vertical-align: text-top; padding-top: .1in;"><span style="font-size: 2.5em">Total tests</span></td>
+                <td style="background: #000; border-top: 1px solid white; border-collapse:collapse; vertical-align: text-top; padding-top: .1in; padding-left: .3in;"><span style="font-size: 2.5em">{{testrun.summary.total}}</span></td>
             </tr>
         </table>
-        <div style="color: {{colors['BROKEN_TEST']}}; margin-left: .5in; margin-right: .5in;"><span style="font-size: 2em">WARNING:</span> The results you are seeing are unreviewed.  The people in charge of this email are probably seeing the results at the same time as you.  Please refrain from accusing them or causing any form of bodily harm if you are not pleased with the results.</div>
+        <div style="background: #000; color: {{colors['BROKEN_TEST']}}; margin-left: .5in; margin-right: .5in;"><span style="font-size: 2em">WARNING:</span> The results you are seeing are unreviewed.  The people in charge of this email are probably seeing the results at the same time as you.  Please refrain from accusing them or causing any form of bodily harm if you are not pleased with the results.</div>
         {% if len(failed_results) > 0 %}
         <hr />
-        <h1>Failed Results</h1>
+        <h1 style="background: #000; ">Failed Results</h1>
         {% for result in failed_results %}
-            <div style="margin-left: .2in"><a href="{{url(result)}}" style="text-decoration: none; color: {{colors['FAIL']}}; font-size: 2em">{{result.testcase.name}}</a></div>
-            <pre style="margin-left: .5in">{{result.reason}}</pre>
-            <div style="margin-left: .5in; margin-bottom: .1in">Files:
+            <div style="background: #000; margin-left: .2in"><a href="{{url(result)}}" style="text-decoration: none; color: {{colors['FAIL']}}; font-size: 2em">{{result.testcase.name}}</a></div>
+            <pre style="background: #000; margin-left: .5in">{{result.reason}}</pre>
+            <div style="background: #000; margin-left: .5in; margin-bottom: .1in">Files:
             {% for storedfile in result.files %}
                 <a href="{{url(storedfile)}}">{{storedfile.filename}}</a>
             {% endfor %}
@@ -72,6 +73,7 @@ class EmailResponder(object):
         {% endfor %}
         {% endif %}
     </div>
+    </body>
     """
 
     colors = {
