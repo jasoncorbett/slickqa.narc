@@ -116,6 +116,7 @@ class EmailResponder(object):
         if not message.acknowledged:
             message.ack()
         update = TestrunUpdateMessage.from_dict(body)
+        self.logger.debug("Got update for testrun '{}', before state: '{}', after state: '{}'.", update.before.name, update.before.state, update.after.state)
         if update.before.state != RunStatus.FINISHED and update.after.state == RunStatus.FINISHED and self.should_email_for(update.after):
             to = self.get_addresses_for(update.after)
             if len(to) > 0:
