@@ -71,7 +71,7 @@ class AutomaticTestrunGroupPlugin(object):
                     if matcher.propertyValue.lower() == value.lower():
                         matchValue = True
             except:
-                self.logger.warn("Caught Exception while trying to check matcher: ", exc_info=sys.exc_info())
+                self.logger.debug("Caught Exception while trying to check matcher (this might be ok): ", exc_info=sys.exc_info())
                 return False
             if matchValue is False:
                 return False
@@ -100,7 +100,7 @@ class AutomaticTestrunGroupPlugin(object):
                         testrun_group.name = testrun_group_name
                         testrun_group.groupType = rule.groupType
                         self.slick.testrungroups(testrun_group).create()
-                    if rule.replaceSameBuild:
+                    if rule.replaceSameBuild and hasattr(testrun_group, 'testruns'):
                         for trgtestrun in testrun_group.testruns:
                             if testrun.build.buildId == trgtestrun.build.buildId:
                                 self.logger.debug("Found existing testrun '{}' with build '{}', removing it from the group.", trgtestrun.name, trgtestrun.build.name)
