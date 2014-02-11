@@ -17,7 +17,7 @@ setup(
     version="1.0" + open("build.txt").read(),
     license="License :: OSI Approved :: Apache Software License",
     long_description=open('README.txt').read(),
-    packages=find_packages(exclude=['distribute_setup']),
+    packages=find_packages(exclude=['ez_setup']),
     package_data={'': ['*.txt', '*.rst', '*.html']},
     include_package_data=True,
     install_requires=requirements,
