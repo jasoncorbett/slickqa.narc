@@ -102,7 +102,7 @@ class AutomaticTestrunGroupPlugin(object):
                         self.slick.testrungroups(testrun_group).create()
                     if rule.replaceSameBuild and hasattr(testrun_group, 'testruns'):
                         for trgtestrun in testrun_group.testruns:
-                            if testrun.build.buildId == trgtestrun.build.buildId:
+                            if testrun.testplanId == trgtestrun.testplanId and testrun.build.buildId == trgtestrun.build.buildId:
                                 self.logger.debug("Found existing testrun '{}' with build '{}', removing it from the group.", trgtestrun.name, trgtestrun.build.name)
                                 self.slick.testrungroups(testrun_group.id).remove_testrun(trgtestrun)
                     self.slick.testrungroups(testrun_group.id).add_testrun(testrun)
