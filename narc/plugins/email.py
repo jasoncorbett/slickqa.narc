@@ -37,7 +37,7 @@ class TestrunUpdateMessage(micromodels.Model):
 class EmailResponder(object):
     """The email auto responder plugin"""
 
-    default_subject_template = "Results of {testrun.name} on {testrun.project.name} for Release {testrun.release.name} build {testrun.build.name}"
+    default_subject_template = "{testrun.release.name} build {testrun.build.name} {testrun.name} Results for {testrun.project.name}"
 
     default_email_template = """
     <body style="background:#000; color: #d3d2d2; padding: 0;">
