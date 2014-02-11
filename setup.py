@@ -26,6 +26,7 @@ setup(
     entry_points={
         'console_scripts': ['narc = narc.main:main', 'narcctl = narc.main:ctlmain'],
         'narc.response' : ['emailresponder = narc.plugins.email:EmailResponder',
-                           'shutdownrestart = narc.plugins.internal:ShutdownRestartPlugin']
+                           'shutdownrestart = narc.plugins.internal:ShutdownRestartPlugin',
+                           'autotestrungroup = narc.plugins.testrungroup:AutomaticTestrunGroupPlugin']
     }
 )
