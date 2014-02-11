@@ -59,17 +59,17 @@ def setup(options):
     assert(isinstance(amqp_config, AMQPSystemConfiguration))
     if not 'AMQP' in config:
         config.add_section("AMQP")
-    if not 'hostname' in config['AMQP']:
+    if not 'hostname' in config['AMQP'] and hasattr(amqp_config, 'hostname'):
         config['AMQP']['hostname'] = amqp_config.hostname
-    if not 'port' in config['AMQP']:
+    if not 'port' in config['AMQP'] and hasattr(amqp_config, 'port'):
         config['AMQP']['port'] = str(amqp_config.port)
-    if not 'username' in config['AMQP']:
+    if not 'username' in config['AMQP'] and hasattr(amqp_config, 'username'):
         config['AMQP']['username'] = amqp_config.username
-    if not 'password' in config['AMQP']:
+    if not 'password' in config['AMQP'] and hasattr(amqp_config, 'password'):
         config['AMQP']['password'] = amqp_config.password
-    if not 'exchange' in config['AMQP']:
+    if not 'exchange' in config['AMQP'] and hasattr(amqp_config, 'exchangeName'):
         config['AMQP']['exchange'] = amqp_config.exchangeName
-    if not 'virtual host' in config['AMQP']:
+    if not 'virtual host' in config['AMQP'] and hasattr(amqp_config, 'virtualHost'):
         config['AMQP']['virtual host'] = amqp_config.virtualHost
 
     amqpcon = amqp.AMQPConnection(config)
