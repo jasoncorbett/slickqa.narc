@@ -59,6 +59,13 @@ class AutomaticTestrunGroupPlugin(object):
             matchValue = False
             assert isinstance(matcher, MatchCriteria)
             try:
+                if 'testplan.' in matcher.propertyName and not hasattr(testrun, 'testplan'):
+                    if hasattr(testrun, 'testplanId'):
+                        self.logger.warn("For some reason Testrun {} with id {} has no testplan object, but it has a testplanId!", testrun.name, testrun.id)
+                        testrun = self.slick.testruns(testrun.id).get()
+                    else:
+                        self.logger.warn("Testrun {} with id {} has no testplanId!", testrun.name, testrun.id)
+
                 value = get_dotted_attr(testrun, matcher.propertyName)
                 self.logger.debug("Checking testrun '{}' to see if {} {} {}, actual value is {}", testrun.name, matcher.propertyName, matcher.comparisonType, matcher.propertyValue, value)
                 if matcher.comparisonType == ComparisonTypes.CONTAINS:
@@ -99,7 +106,7 @@ class AutomaticTestrunGroupPlugin(object):
                         testrun_group = TestrunGroup()
                         testrun_group.name = testrun_group_name
                         testrun_group.groupType = rule.groupType
-                        self.slick.testrungroups(testrun_group).create()
+                        testrun_group = self.slick.testrungroups(testrun_group).create()
                     if rule.replaceSameBuild and hasattr(testrun_group, 'testruns'):
                         for trgtestrun in testrun_group.testruns:
                             if testrun.testplanId == trgtestrun.testplanId and testrun.build.buildId == trgtestrun.build.buildId:
