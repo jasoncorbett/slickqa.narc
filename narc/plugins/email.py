@@ -63,7 +63,7 @@ class EmailResponder(object):
         <hr />
         <h1 style="background: #000; ">Failed Results</h1>
         {% for result in failed_results %}
-            <div style="background: #000; margin-left: .2in"><a href="{{url(result)}}" style="text-decoration: none; color: {{colors['FAIL']}}; font-size: 2em">{{result.testcase.name}}</a></div>
+            <div style="background: #000; margin-left: .2in"><a href="{{url(result, result.status, testrun)}}" style="text-decoration: none; color: {{colors['FAIL']}}; font-size: 2em">{{result.testcase.name}}</a></div>
             <pre style="background: #000; margin-left: .5in">{{result.reason}}</pre>
             <div style="background: #000; margin-left: .5in; margin-bottom: .1in">Files:
             {% for storedfile in result.files %}
@@ -183,16 +183,16 @@ class EmailResponder(object):
         # Should be mailServer.quit(), but that crashes...
         mailServer.close()
 
-    def url(self, param, status=None):
+    def url(self, param, status=None, testrun=None):
         """Return a url based on the parameter passed in."""
         base_url = self.slick.baseUrl[0:-4]
         if isinstance(param, Testrun):
             if status is None:
-                return "{}/#/reports/testrunsummary/{}".format(base_url, param.id)
+                return "{}/testruns/{}".format(base_url, param.id)
             else:
-                return "{}/#/reports/testrundetail/{}?only={}".format(base_url, param.id, status)
+                return "{}/testruns/{}?only={}".format(base_url, param.id, status)
         elif isinstance(param, Result):
-            return "{}/#/reports/result/{}".format(base_url, param.id)
+            return "{}/#/testruns/{}?result={}".format(base_url, testrun.id, param.id)
         elif isinstance(param, StoredFile):
             return "{}/api/files/{}/content/{}".format(base_url, param.id, param.filename)
 
